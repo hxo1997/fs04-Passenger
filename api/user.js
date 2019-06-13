@@ -1,6 +1,11 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const {authenticating} = require("../middleware/auth");
 const router = express.Router();
-const {User} = require("../models/users");
+const {
+    User
+} = require("../models/users");
 
 //Middleware
 // router.get("/xyz", (req, res,next) => {
@@ -19,16 +24,100 @@ const {User} = require("../models/users");
 // desc register new user
 // access PUBLIC
 
-router.post("/register", (req,res)=> {
-    const {email, password, fullName, userType, phone, DOB} = req.body;
+router.post("/register", (req, res) => {
+    const {
+        email,
+        password,
+        fullName,
+        userType,
+        phone,
+        DOB
+    } = req.body;
 
-    const newUser = new User({
-        email,password,fullName,userType,phone,DOB
+
+    // check whether if input is valid
+    User.findOne({
+            $or: [{email},{phone}]
+        })
+        .then(user => {
+            if (user) return Promise.reject({
+                errors: "Email or phone is exist"
+            })
+            const newUser = new User({
+                email,
+                password,
+                fullName,
+                userType,
+                phone,
+                DOB
+            })
+            bcrypt.genSalt(10, (err, salt) => {
+                if (err) return Promise.reject(err);
+
+                bcrypt.hash(password, salt, (err, hash) => {
+                    if (err) return Promise.reject(err);
+                    newUser.password = hash;
+                    newUser.save()
+                        .then(user => res.status(200)
+                            .json(user))
+                        .catch(err => res.status(400)
+                            .json(err))
+                            
+                })
+            })
+        })
+    // const newUser = new User({
+    //     email,password,fullName,userType,phone,DOB
+    // })
+    // newUser.save()
+    .catch(err => res.status(400).json( ))
+   
+})
+    // route POST /api/users/login
+    // desc login
+    // access PUBLIC
+router.post("/login", (req, res) => {
+    const {
+        email,
+        password,
+        
+    } = req.body;
+
+    User.findOne({email})
+        .then(user => {
+            if(!user) return Promise.reject({errors: "User does not exist"})
+
+            bcrypt.compare(password, user.password, (err, isMatch) => {
+                if(!isMatch) return res.status(400).json({errors: "wrong password"})
+
+                const payload = {
+                    email: user.email,
+                    fullName: user.fullName,
+                    userType: user.userType
+                }
+                jwt.sign(payload,"Cybersoft", {expiresIn: "1h"}, (err, token) => {
+                    if (err) return res.status(400).json(err)
+
+                    return res.status(200).json({
+                        message:"success",
+                        token
+                    })
+                })
+                // res.status(200).json({
+                //     message:"success"
+                // })
+            })
+        })
+        .catch(err => res.status(400).json(err))
     })
-    newUser.save()
-        .then(user=>res.status(200)
-        .json(user))
-        .catch(err=>res.status(400)
-        .json(err))
-}) 
+
+    // route POST /api/users/test-privates
+    // desc test-private
+    // access Private (only allow logined users to access)
+
+    
+router.get("/test-private", authenticating, (req,res) => {
+    res.status(200).json({message: "you see it"})
+})
+
 module.exports = router;
