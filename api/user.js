@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const {authenticating,authorizing} = require("../middleware/auth");
+
 const router = express.Router();
 const {
     User
@@ -37,7 +37,11 @@ const register = (req, res, next) => {
 
     // check whether if input is valid
     User.findOne({
-            $or: [{email},{phone}]
+            $or: [{
+                email
+            }, {
+                phone
+            }]
         })
         .then(user => {
             if (user) return Promise.reject({
@@ -62,64 +66,78 @@ const register = (req, res, next) => {
                             .json(user))
                         .catch(err => res.status(400)
                             .json(err))
-                            
+
                 })
             })
         })
-    // const newUser = new User({
-    //     email,password,fullName,userType,phone,DOB
-    // })
-    // newUser.save()
-    .catch(err => res.status(400).json( ))
-   
+        // const newUser = new User({
+        //     email,password,fullName,userType,phone,DOB
+        // })
+        // newUser.save()
+        .catch(err => res.status(400).json())
+
 }
-    // route POST /api/users/login
-    // desc login
-    // access PUBLIC
-// router.post("/login", (req, res) => {
-//     const {
-//         email,
-//         password,
-        
-//     } = req.body;
+// route POST /api/users/login
+// desc login
+// access PUBLIC
 
-//     User.findOne({email})
-//         .then(user => {
-//             if(!user) return Promise.reject({errors: "User does not exist"})
+const login = (req, res, next) => {
+    const {
+        email,
+        password
+    } = req.body;
 
-//             bcrypt.compare(password, user.password, (err, isMatch) => {
-//                 if(!isMatch) return res.status(400).json({errors: "wrong password"})
 
-//                 const payload = {
-//                     email: user.email,
-//                     fullName: user.fullName,
-//                     userType: user.userType
-//                 }
-//                 jwt.sign(payload,"Cybersoft", {expiresIn: "1h"}, (err, token) => {
-//                     if (err) return res.status(400).json(err)
+    User.findOne({
+            email
+        })
+        .then(user => {
+            if (!user) return Promise.reject({
+                errors: "User does not exist"
+            })
 
-//                     return res.status(200).json({
-//                         message:"success",
-//                         token
-//                     })
-//                 })
-//                 // res.status(200).json({
-//                 //     message:"success"
-//                 // })
-//             })
-//         })
-//         .catch(err => res.status(400).json(err))
-//     })
+            bcrypt.compare(password, user.password, (err, isMatch) => {
+                if (!isMatch) return res.status(400).json({
+                    errors: "wrong password"
+                })
+
+                const payload = {
+                    email: user.email,
+                    fullName: user.fullName,
+                    userType: user.userType
+                }
+                jwt.sign(payload, "Cybersoft", {
+                    expiresIn: "1h"
+                }, (err, token) => {
+                    if (err) return res.status(400).json(err)
+
+                    return res.status(200).json({
+                        message: "success",
+                        token
+                    })
+                })
+                // res.status(200).json({
+                //     message:"success"
+                // })
+            })
+        })
+        .catch(err => res.status(400).json(err))
+}
 
 //     // route POST /api/users/test-privates
 //     // desc test-private
 //     // access Private (only allow logined users to access)
 
-    
+const testPrivate = (req,res,next) => {
+    (req,res) => {
+        res.status(200).json({message: "you see it"})    
+    }
+}
+
 // router.get("/test-private", authenticating,authorizing(["admin"]), (req,res) => {
 //     res.status(200).json({message: "you see it"})
 // })
 
 module.exports = {
-    register
+    register, login, testPrivate
 };
