@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const multer = require("multer");
 const jwt = require("jsonwebtoken");
 
 const router = express.Router();
@@ -102,6 +103,7 @@ const login = (req, res, next) => {
                 })
 
                 const payload = {
+                    id: user._id,
                     email: user.email,
                     fullName: user.fullName,
                     userType: user.userType
@@ -128,10 +130,21 @@ const login = (req, res, next) => {
 //     // desc test-private
 //     // access Private (only allow logined users to access)
 
-const testPrivate = (req,res,next) => {
-    (req,res) => {
-        res.status(200).json({message: "you see it"})    
-    }
+const testPrivate = (req, res, next) => {
+    res.status(200).json({
+        message: "you see it"
+    })
+}
+const uploadAvatar = (req, res, next) => {
+    const {id} = req.user;
+        User.findById(id)
+            .then(user => {
+                if(!user) return Promise.reject({errors: "error"})
+                user.avatar = req.file.path
+                return user.save()
+            })
+            .then(user => res.status(200).json(user))
+            .catch(err => res.status(400).json(err))
 }
 
 // router.get("/test-private", authenticating,authorizing(["admin"]), (req,res) => {
@@ -139,5 +152,8 @@ const testPrivate = (req,res,next) => {
 // })
 
 module.exports = {
-    register, login, testPrivate
+    register,
+    login,
+    testPrivate,
+    uploadAvatar
 };

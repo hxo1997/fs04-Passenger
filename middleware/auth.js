@@ -32,6 +32,7 @@ const authorizing = (userTypeArray) => {
     }
 }
 
+
 module.exports = {
     authenticating, authorizing
 }
