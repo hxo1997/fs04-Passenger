@@ -1,8 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
-const multer = require("multer");
 const jwt = require("jsonwebtoken");
-
+const validateRegisterInput = require("../validation/validationRegisterInput");
 const router = express.Router();
 const {
     User
@@ -25,7 +24,12 @@ const {
 // desc register new user
 // access PUBLIC
 
-const register = (req, res, next) => {
+const register = async (req, res, next) => {
+    const {
+        isValid,
+        errors
+    } = await validateRegisterInput(req.body)
+    if (!isValid) return res.status(400).json(errors);
     const {
         email,
         password,
@@ -37,47 +41,36 @@ const register = (req, res, next) => {
 
 
     // check whether if input is valid
-    User.findOne({
-            $or: [{
-                email
-            }, {
-                phone
-            }]
+
+    const newUser = new User({
+        email,
+        password,
+        fullName,
+        userType,
+        phone,
+        DOB
+    })
+    bcrypt.genSalt(10, (err, salt) => {
+        if (err) return Promise.reject(err);
+
+        bcrypt.hash(password, salt, (err, hash) => {
+            if (err) return Promise.reject(err);
+            newUser.password = hash;
+            newUser.save()
+                .then(user => res.status(200)
+                    .json(user))
+                .catch(err => res.status(400)
+                    .json(err))
+
         })
-        .then(user => {
-            if (user) return Promise.reject({
-                errors: "Email or phone is exist"
-            })
-            const newUser = new User({
-                email,
-                password,
-                fullName,
-                userType,
-                phone,
-                DOB
-            })
-            bcrypt.genSalt(10, (err, salt) => {
-                if (err) return Promise.reject(err);
-
-                bcrypt.hash(password, salt, (err, hash) => {
-                    if (err) return Promise.reject(err);
-                    newUser.password = hash;
-                    newUser.save()
-                        .then(user => res.status(200)
-                            .json(user))
-                        .catch(err => res.status(400)
-                            .json(err))
-
-                })
-            })
-        })
-        // const newUser = new User({
-        //     email,password,fullName,userType,phone,DOB
-        // })
-        // newUser.save()
-        .catch(err => res.status(400).json())
-
+    })
 }
+// const newUser = new User({
+//     email,password,fullName,userType,phone,DOB
+// })
+// newUser.save()
+
+
 // route POST /api/users/login
 // desc login
 // access PUBLIC
@@ -136,15 +129,19 @@ const testPrivate = (req, res, next) => {
     })
 }
 const uploadAvatar = (req, res, next) => {
-    const {id} = req.user;
-        User.findById(id)
-            .then(user => {
-                if(!user) return Promise.reject({errors: "error"})
-                user.avatar = req.file.path
-                return user.save()
+    const {
+        id
+    } = req.user;
+    User.findById(id)
+        .then(user => {
+            if (!user) return Promise.reject({
+                errors: "error"
             })
-            .then(user => res.status(200).json(user))
-            .catch(err => res.status(400).json(err))
+            user.avatar = req.file.path
+            return user.save()
+        })
+        .then(user => res.status(200).json(user))
+        .catch(err => res.status(400).json(err))
 }
 
 // router.get("/test-private", authenticating,authorizing(["admin"]), (req,res) => {

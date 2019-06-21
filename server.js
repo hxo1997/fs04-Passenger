@@ -18,6 +18,7 @@ app.use("/uploads",express.static("uploads"));
 
 //router
 app.use("/api/users",require("./api/"));
+app.use("/api/trips", require("./api/trips"))
 
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}` );
